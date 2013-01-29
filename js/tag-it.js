@@ -48,6 +48,9 @@
             // Shows autocomplete before the user even types anything.
             showAutocompleteOnFocus: false,
 
+            // Shows autocomplete menu after a tag has been created / removed.
+            showAutocompleteAfterTagManipulation: true,
+
             // When enabled, quotes are unneccesary for inputting multi-word tags.
             allowSpaces: false,
 
@@ -107,6 +110,9 @@
             // Do not use the above deprecated options.
         },
 
+        // State for if a tag is currently being removed.
+        _removingTag:false,
+
         _create: function() {
             // for handling static scoping inside callbacks
             var that = this;
@@ -150,7 +156,9 @@
 
             if (this.options.showAutocompleteOnFocus) {
                 this.tagInput.focus(function(event, ui) {
-                    that._showAutocomplete();
+                    if (that.options.showAutocompleteAfterTagManipulation || !that._removingTag) {
+                        that._showAutocomplete();
+                    }
                 });
 
                 if (typeof this.options.autocomplete.minLength === 'undefined') {
@@ -470,15 +478,18 @@
                 duringInitialization: duringInitialization
             });
 
-            if (this.options.showAutocompleteOnFocus && !duringInitialization) {
+            if (this.options.showAutocompleteOnFocus && !duringInitialization && this.options.showAutocompleteAfterTagManipulation) {
                 setTimeout(function () { that._showAutocomplete(); }, 0);
             }
         },
 
         removeTag: function(tag, animate) {
+            var that = this;
             animate = typeof animate === 'undefined' ? this.options.animate : animate;
 
             tag = $(tag);
+
+            this._removingTag = true;
 
             // DEPRECATED.
             this._trigger('onTagRemoved', null, tag);
@@ -504,10 +515,12 @@
                     tag.remove();
                 });
 
-                tag.fadeOut('fast').hide.apply(tag, hide_args).dequeue();
+                tag.fadeOut('fast', function() {that._removingTag = false;}).hide.apply(tag, hide_args).dequeue();
             } else {
                 tag.remove();
+                this._removingTag = false;
             }
+
 
             this._trigger('afterTagRemoved', null, {tag: tag, tagLabel: this.tagLabel(tag)});
         },
