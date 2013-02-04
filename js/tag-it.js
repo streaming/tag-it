@@ -51,6 +51,9 @@
             // Shows autocomplete menu after a tag has been created / removed.
             showAutocompleteAfterTagManipulation: true,
 
+            // Hides the placeholder text when any number of tags are visible.
+            hidePlaceholderOnVisibleTags: false,
+
             // When enabled, quotes are unneccesary for inputting multi-word tags.
             allowSpaces: false,
 
@@ -481,6 +484,11 @@
             if (this.options.showAutocompleteOnFocus && !duringInitialization && this.options.showAutocompleteAfterTagManipulation) {
                 setTimeout(function () { that._showAutocomplete(); }, 0);
             }
+
+            // Hide the placeholder now that a tag is given
+            if (this.options.placeholderText && this.options.hidePlaceholderOnVisibleTags) {
+                this.tagInput.removeAttr('placeholder');
+            }
         },
 
         removeTag: function(tag, animate) {
@@ -523,6 +531,11 @@
 
 
             this._trigger('afterTagRemoved', null, {tag: tag, tagLabel: this.tagLabel(tag)});
+
+            // Show the placeholder if no tags remain
+            if (this.options.placeholderText && !this.tagInput.attr('placeholder') && this._tags().length === 0) {
+                this.tagInput.attr('placeholder', this.options.placeholderText);
+            }
         },
 
         removeTagByLabel: function(tagLabel, animate) {
