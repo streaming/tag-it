@@ -3,3 +3,10 @@
 *.swo
 *.swp
 .DS_Store
+
+#################
+## Jetbrains
+#################
+.idea
+.idea/
+.idea/**.**
