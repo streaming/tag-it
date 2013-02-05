@@ -54,6 +54,9 @@
             // Hides the placeholder text when any number of tags are visible.
             hidePlaceholderOnVisibleTags: false,
 
+            // Only allows the user to select tags in the availableTags list
+            onlyAllowAutoCompleteTags: false,
+
             // When enabled, quotes are unneccesary for inputting multi-word tags.
             allowSpaces: false,
 
@@ -240,6 +243,7 @@
                         } else if (that.options.removeConfirmation) {
                             tag.addClass('remove ui-state-highlight');
                         }
+                        that.tagInput.autocomplete('close');
                     } else if (that.options.removeConfirmation) {
                         that._lastTag().removeClass('remove ui-state-highlight');
                     }
@@ -252,7 +256,7 @@
                         event.which === $.ui.keyCode.COMMA ||
                         event.which === $.ui.keyCode.ENTER ||
                         (
-                            event.which == $.ui.keyCode.TAB &&
+                            event.which === $.ui.keyCode.TAB &&
                             that.tagInput.val() !== ''
                         ) ||
                         (
@@ -269,11 +273,22 @@
                         )
                     ) {
                         // Enter submits the form if there's no text in the input.
-                        if (!(event.which === $.ui.keyCode.ENTER && that.tagInput.val() === '')) {
+                        if (!(event.which === $.ui.keyCode.ENTER && that.tagInput.val() === '') &&
+                            (event.which === $.ui.keyCode.TAB && !that.options.onlyAllowAutoCompleteTags)) {
                             event.preventDefault();
                         }
 
-                        that.createTag(that._cleanedInput());
+                        // If a tag has been created then stop a TAB press from navigating away from the input.
+                        if (that.createTag(that._cleanedInput())) {
+                            if (event.which === $.ui.keyCode.TAB) {
+                                event.preventDefault();
+                            }
+                        } else {
+                            // Otherwise clear the
+                            if (that.options.onlyAllowAutoCompleteTags) {
+                                that.tagInput.val('');
+                            }
+                        }
 
                         // The autocomplete doesn't close automatically when TAB is pressed.
                         // So let's ensure that it closes.
@@ -453,12 +468,37 @@
                 tag.append('<input type="hidden" style="display:none;" value="' + escapedValue + '" name="' + this.options.fieldName + '" />');
             }
 
+            var tagLabel = this.tagLabel(tag);
             if (this._trigger('beforeTagAdded', null, {
                 tag: tag,
-                tagLabel: this.tagLabel(tag),
+                tagLabel: tagLabel,
                 duringInitialization: duringInitialization
             }) === false) {
-                return;
+                return false;
+            }
+
+            // Update the tag with the correct value
+            if (this.options.onlyAllowAutoCompleteTags && this.options.availableTags.length > 0) {
+                var matchedTagIndex = -1, exactMatchFound = false;
+                for(var i = 0; i < this.options.availableTags.length; i++) {
+                    var currentTag = this.options.availableTags[i];
+                    if (tagLabel === currentTag) {
+                        exactMatchFound = true;
+                    } else if (!this.options.caseSensitive && tagLabel.toLowerCase() === currentTag.toLowerCase()) {
+                        matchedTagIndex = i;
+                    }
+                }
+
+                if (matchedTagIndex >= 0 && !exactMatchFound) {
+                    var tagValue = this.options.availableTags[matchedTagIndex];
+                    $('.tagit-label', tag).text(tagValue);
+                    $('input', tag).attr('value', tagValue);
+                }
+
+                // If no tags match but the tag is using the additionalClass then allow it otherwise deny the tag.
+                if (matchedTagIndex === -1 && !exactMatchFound && !tag.hasClass(additionalClass)) {
+                    return false;
+                }
             }
 
             if (this.options.singleField) {
@@ -489,6 +529,8 @@
             if (this.options.placeholderText && this.options.hidePlaceholderOnVisibleTags) {
                 this.tagInput.removeAttr('placeholder');
             }
+
+            return true;
         },
 
         removeTag: function(tag, animate) {
